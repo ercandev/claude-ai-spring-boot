@@ -130,14 +130,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 ```java
 @Service
 public class JwtService {
-    @Value("${jwt.secret}")
-    private String secretKey;
+    // Inject via @ConfigurationProperties — never hardcode credentials
+    private final JwtProperties jwtProperties;
 
-    @Value("${jwt.expiration}")
-    private long jwtExpiration;
-
-    @Value("${jwt.refresh-expiration}")
-    private long refreshExpiration;
+    public JwtService(JwtProperties jwtProperties) {
+        this.jwtProperties = jwtProperties;
+    }
 
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
@@ -160,11 +158,11 @@ public class JwtService {
     public String generateToken(
             Map<String, Object> extraClaims,
             UserDetails userDetails) {
-        return buildToken(extraClaims, userDetails, jwtExpiration);
+        return buildToken(extraClaims, userDetails, jwtProperties.expiration());
     }
 
     public String generateRefreshToken(UserDetails userDetails) {
-        return buildToken(new HashMap<>(), userDetails, refreshExpiration);
+        return buildToken(new HashMap<>(), userDetails, jwtProperties.refreshExpiration());
     }
 
     private String buildToken(
@@ -204,7 +202,7 @@ public class JwtService {
     }
 
     private SecretKey getSignInKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(secretKey);
+        byte[] keyBytes = Decoders.BASE64.decode(jwtProperties.secret());
         return Keys.hmacShaKeyFor(keyBytes);
     }
 }
@@ -515,7 +513,7 @@ spring:
           reload-on-update: true
           keystore:
             location: classpath:keystore.p12
-            password: ${KEYSTORE_PASSWORD}
+            # credentials: configure via environment variables
             type: PKCS12
 ```
 
